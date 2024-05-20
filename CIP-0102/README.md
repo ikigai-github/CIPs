@@ -23,7 +23,12 @@ This proposal makes use of the onchain metadata pattern established in [CIP-0068
 
 The inability to create trustless onchain royalty validation with [CIP-0027][] is a major drawback to Cardano NFTs. The pattern defined in CIP-68 represents an opportunity to upgrade the standard to support onchain validation. This CIP aims to eliminate that drawback and demonstrate better support for developers, NFT creators, and NFT collectors, ultimately attracting dapps & NFT projects that would otherwise have taken their talents to another blockchain.
 
-In addition, this standard allows royalties to be split between multiple addresses, another limitation of the CIP-27 royalty schema. Future versions of this standard could  also easily support multiple royalty policies defined for a single collection, applied at the level of individual tokens.
+In addition, this standard allows royalties to be split between multiple addresses, another limitation of the CIP-27 royalty schema. 
+
+Version 2 this standard also supports:
+- Multiple royalty policies defined for a single collection, applied at the level of individual tokens.
+- Tokenized Recipients
+- CIP-88 Integration
 
 ## Specification
 
