@@ -19,6 +19,23 @@ License: CC-BY-4.0
 
 This proposal makes use of the onchain metadata pattern established in [CIP-0068][] to provide a way to store royalties with greater assurance and customizability.
 
+## Table of Contents
+1. [Abstract](#abstract)
+1. [Table of Contents](#table-of-contents)
+1. [Motivation](#motivation-why-is-this-cip-necessary)
+1. [Specification](#specification)
+    1. [Expected Behaviour](#expected-behavior)
+    1. [Reference Datum](TODO)
+    1. [Royalty Datum](#500-royalty-datum-standard)
+1. [Examples](#examples)
+    1. [Datum Selection](TODO)
+    1. [Reading Metadata](#retrieving-metadata)
+    1. [Variable Fee Calculation](#example-of-onchain-variable-fee-calculation)
+1. [Rationale](#rationale-how-does-this-cip-achieve-its-goals)
+1. [Extending & Modifying this CIP](#extending--modifying-this-cip)
+1. [Path to Active](#path-to-active)
+1. [Copyright](#copyright)
+
 ## Motivation: why is this CIP necessary?
 
 The inability to create trustless onchain royalty validation with [CIP-0027][] is a major drawback to Cardano NFTs. The pattern defined in CIP-68 represents an opportunity to upgrade the standard to support onchain validation. This CIP aims to eliminate that drawback and demonstrate better support for developers, NFT creators, and NFT collectors, ultimately attracting dapps & NFT projects that would otherwise have taken their talents to another blockchain.
@@ -27,10 +44,25 @@ In addition, this standard allows royalties to be split between multiple address
 
 Version 2 this standard also supports:
 - Multiple royalty policies defined for a single collection, applied at the level of individual tokens.
-- Tokenized Recipients
-- CIP-88 Integration
+- CIP-88 Integration - integrate with the latest standard for NFT collection metadata, defining how they ought to work in tandem.
+- Non-ada currencies - royalties **must** be paid in the same monetary unit as the sale.
 
 ## Specification
+
+### Expected Behavior
+
+Marketplaces **must** expect & extract royalty information as provided in [Examples](#examples)
+
+Marketplaces **must** calculate & pay a fee to the recipient(s) specified, calculated as 
+```
+max(min_fee, min(max_fee, pct)) // check against minimum & maximum fees
+
+where
+
+pct = (10 / fee) * sale_price // variable fee percentage of sale
+```
+
+Royalties **must** be paid in the same monetary unit as the sale.
 
 ### 500 Royalty Datum Standard
 
@@ -101,26 +133,11 @@ Because the computational complexity of Plutus primitives scales with size, this
 
 To prevent abuse, it is **recommended** that the `royalty NFT` is stored at the script address of a validator that ensures the specified fees are not arbitrarily changed, such as an always-fails validator.
 
-### Reference Datum Royalty Flag
-
-If not specified elsewhere in the token's datums, a malicious user could send transactions to a protocol which do not reference the royalty datum. For full assurances, a new optional flag should be added to the reference datum
-
-```cddl
-extra = 
-	{
-		...
-
-		? royalty_included : big_int
-	}
-```
-
-- If the field is present and > 1 the validators must require a royalty input.
-- If the field is present and set to 0 the validators don't need to search for a royalty input.
-- If the field is not present, validators should accept a royalty input, but not require one.
-
-### Examples
+## Examples
 
 In-code examples can be found in the [reference implementation](https://github.com/SamDelaney/CIP_102_Reference).
+
+### Retrieving metadata
 
 #### Retrieve metadata as 3rd party
 
@@ -139,6 +156,23 @@ We want to bring the royalty metadata of the NFT `d5e6bf0500378d4f0da4e8dde6bece
 2. Look up `royalty NFT` and find the output it's locked in. (off-chain)
 3. Reference the output in the transaction. (off-chain)
 4. Verify validity of datum of the referenced output by checking if policy ID of `royalty NFT` and `user token` and their asset names without the `asset_name_label` prefix match. (on-chain)
+
+### Reference Datum Royalty Flag
+
+If not specified elsewhere in the token's datums, a malicious user could send transactions to a protocol which do not reference the royalty datum. For full assurances, a new optional flag should be added to the reference datum
+
+```cddl
+extra = 
+	{
+		...
+
+		? royalty_included : big_int
+	}
+```
+
+- If the field is present and > 1 the validators must require a royalty input.
+- If the field is present and set to 0 the validators don't need to search for a royalty input.
+- If the field is not present, validators should accept a royalty input, but not require one.
 
 ## Rationale: how does this CIP achieve its goals?
 
