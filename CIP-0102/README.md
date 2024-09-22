@@ -25,8 +25,8 @@ This proposal makes use of the onchain metadata pattern established in [CIP-0068
 1. [Motivation](#motivation-why-is-this-cip-necessary)
 1. [Specification](#specification)
     1. [Expected Behaviour](#expected-behavior)
-    1. [Reference Datum](TODO)
     1. [Royalty Datum](#500-royalty-datum-standard)
+    1. [Reference Datum](#reference-datum-standard)
 1. [Examples](#examples)
     1. [Datum Selection](TODO)
     1. [Reading Metadata](#retrieving-metadata)
@@ -51,7 +51,7 @@ Version 2 this standard also supports:
 
 ### Expected Behavior
 
-Marketplaces **must** expect & extract royalty information as provided in [Examples](#examples)
+Marketplaces **must** expect & extract royalty information if provided.
 
 Marketplaces **must** calculate & pay a fee to the recipient(s) specified, calculated as 
 ```
@@ -66,7 +66,7 @@ Royalties **must** be paid in the same monetary unit as the sale.
 
 ### 500 Royalty Datum Standard
 
-The following defines the `500` Royalty NFT standard with the registered `asset_name_label` prefix value
+The following defines the `500` Royalty NFT standard with the registered `asset_name_label` prefix value, and optionally, an numeric postfix. This postfix is included to allow for multiple Royalty NFTs, specifying multiple royalty policies.
 
 | asset_name_label            | class        | description                                                          |
 | --------------------------- | ------------ | -------------------------------------------------------------------- |
@@ -80,7 +80,7 @@ The `royalty NFT` is an NFT (non-fungible token).
 
 The `royalty NFT` **must** have an identical `policy id` as the collection.
 
-The `asset name` **must** be `001f4d70526f79616c7479` (hex encoded), it contains the [CIP-0067][] label `500` followed by the word "Royalty".
+The `asset name` **must** begin with `001f4d70526f79616c7479` (hex encoded), it contains the [CIP-0067][] label `500` followed by the word "Royalty". Any additions must be numeric & appended to the end of the `asset name`
 
 Example:\
 `royalty NFT`: `(500)Royalty`\
@@ -117,21 +117,27 @@ extra = plutus_data
 
 royalty_info = #6.121([royalty_recipients, version, extra])
 ```
+### Reference Datum Standard
+As indicated [TODO] by the Royalty Datum Standard, multiple royalty policies may be defined by postfixing the `asset name`s of the associated Royalty Tokens with numeric identifiers.
 
-#### Example of onchain variable fee calculation:
+If not specified elsewhere in the token's datums, a malicious or mistaken user could send transactions to a protocol which do not reference the royalty datum, or which reference the wrong datum. For full assurances & clarity, an optional flag should be included in the reference datum
 
 ```cddl
-; Given a royalty fee of 1.6% (0.016)
+extra = 
+	{
+		...
 
-; To store this in the royalty datum
-1 / (0.016 / 10) => 625
-
-; To read it back
-10 / 625 => 0.016
+		? royalty_included : big_int
+	}
 ```
-Because the computational complexity of Plutus primitives scales with size, this approach significantly minimizes resource consumption.
 
-To prevent abuse, it is **recommended** that the `royalty NFT` is stored at the script address of a validator that ensures the specified fees are not arbitrarily changed, such as an always-fails validator.
+- If the field is present and > 1 the validators must require a royalty input.
+- If the field is present and set to 0 the validators don't need to search for a royalty input.
+- If the field is not present, validators should accept a royalty input, but not require one.
+
+The correct datum may then be reliably found by searching for a Royalty Token with a matching prefix. Examples of how to do so are provided below.
+
+In the case of ambiguity, users/dapps may choose whichever policy they wish to honor.
 
 ## Examples
 
@@ -157,22 +163,20 @@ We want to bring the royalty metadata of the NFT `d5e6bf0500378d4f0da4e8dde6bece
 3. Reference the output in the transaction. (off-chain)
 4. Verify validity of datum of the referenced output by checking if policy ID of `royalty NFT` and `user token` and their asset names without the `asset_name_label` prefix match. (on-chain)
 
-### Reference Datum Royalty Flag
-
-If not specified elsewhere in the token's datums, a malicious user could send transactions to a protocol which do not reference the royalty datum. For full assurances, a new optional flag should be added to the reference datum
+### Example of onchain variable fee calculation:
 
 ```cddl
-extra = 
-	{
-		...
+; Given a royalty fee of 1.6% (0.016)
 
-		? royalty_included : big_int
-	}
+; To store this in the royalty datum
+1 / (0.016 / 10) => 625
+
+; To read it back
+10 / 625 => 0.016
 ```
+Because the computational complexity of Plutus primitives scales with size, this approach significantly minimizes resource consumption.
 
-- If the field is present and > 1 the validators must require a royalty input.
-- If the field is present and set to 0 the validators don't need to search for a royalty input.
-- If the field is not present, validators should accept a royalty input, but not require one.
+To prevent abuse, it is **recommended** that the `royalty NFT` is stored at the script address of a validator that ensures the specified fees are not arbitrarily changed, such as an always-fails validator.
 
 ## Rationale: how does this CIP achieve its goals?
 
@@ -182,7 +186,7 @@ The specification here is made to be as minimal as possible. This is done with e
 
 This specification is largely based on [the royalty specification in Nebula](https://github.com/spacebudz/nebula/tree/main#royalty-info-specification), with a couple key departures:
 
-- The royalty token is recommended to be locked at a script address, rather than stored in the user's wallet. This encourages projects to guarantee royalties won't change by sending their royalties to an always-fails (or similar) script address, but still allows for creative royalty schemes and minimizes disruption to existing projects.
+- The Royalty Token is recommended to be locked at a script address, rather than stored in the user's wallet. This encourages projects to guarantee royalties won't change by sending their royalties to an always-fails (or similar) script address, but still allows for creative royalty schemes and minimizes disruption to existing projects.
 
 - The policyId of the royalty NFT must match that of the reference NFT. This enables lookups based on the user token in the same way as is done for the tokens specified in the original CIP-68 standard.
 
@@ -190,9 +194,9 @@ This specification is largely based on [the royalty specification in Nebula](htt
 
 In addition to providing a way to create guaranteed royalties, this has several advantages:
 
-- Backwards Compatibility - Existing royalty implementations will still work, just not have the same assurances.
-- Minimal Storage Requirement - An optional boolean has about the smallest memory impact possible. This is especially important because it's attached to the - Reference NFT and will be set for each individual NFT.
-- Intra-Collection Utility - This already allows for minting a collection with some NFTs with royalties and some without. A future version of this standard will likely make use of this field to allow for multiple versions of royalties for even more granular control.
+- Backwards Compatibility - Existing royalty implementations will still work, just not have the same assurances/flexibility.
+- Minimal Storage Requirement - An optional big_int has about the smallest memory impact possible. This is especially important because it's attached to the - Reference NFT and will be set for each individual NFT.
+- Intra-Collection Utility - This already allows for minting a collection with some NFTs with royalties and some without. V2 of this standard now makes use of this field to allow for multiple versions of royalties for even more granular control.
 
 ### Backward Compatibility
 
